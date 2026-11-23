@@ -152,6 +152,13 @@ android {
 
         multiDexEnabled true
 
+        // TGeshka: api_id/api_hash and the gateway address come from CI secrets
+        // (environment) or local.properties, never from the sources.
+        buildConfigField "int", "TGESHKA_API_ID", tgeshkaSetting("TGESHKA_API_ID", "0")
+        buildConfigField "String", "TGESHKA_API_HASH", "\"" + tgeshkaSetting("TGESHKA_API_HASH", "") + "\""
+        buildConfigField "String", "TGESHKA_GATEWAY_URL", "\"" + tgeshkaSetting("TGESHKA_GATEWAY_URL", "") + "\""
+        buildConfigField "String", "TGESHKA_VERSION", "\"" + tgeshkaSetting("TGESHKA_VERSION", TGESHKA_VERSION) + "\""
+
         externalNativeBuild {
             cmake {
                 version '3.22.1'
@@ -244,6 +251,14 @@ android {
     namespace 'org.telegram.messenger'
 }
 
+
+def tgeshkaSetting(String name, String fallback) {
+    def value = System.getenv(name)
+    if (!value) {
+        value = getProps(name)
+    }
+    return value ? value.toString().trim() : fallback
+}
 
 def getProps(String propName) {
     def propsFile = rootProject.file('local.properties')
