@@ -18,11 +18,13 @@ public class NotificationsService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        org.telegram.tgeshka.TGeshkaKeepAlive.startForeground(this);
         ApplicationLoader.postInitApplication();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        org.telegram.tgeshka.TGeshkaKeepAlive.startForeground(this);
         return START_STICKY;
     }
 
