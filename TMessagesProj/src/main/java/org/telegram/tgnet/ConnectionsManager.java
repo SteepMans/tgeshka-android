@@ -672,7 +672,9 @@ public class ConnectionsManager extends BaseController {
     public void init(int version, int layer, int apiId, String deviceModel, String systemVersion, String appVersion, String langCode, String systemLangCode, String configPath, String logPath, String regId, String cFingerprint, int timezoneOffset, long userId, boolean userPremium, boolean enablePushConnection) {
         final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
         final ProxySettings proxySettings = ProxySettings.fromSharedPreferences(preferences);
-        if (preferences.getBoolean("proxy_enabled", false) && proxySettings.isValid()) {
+        // TGeshka: every connection goes through the gateway, user proxies are ignored.
+        org.telegram.tgeshka.TGeshkaGateway.applyToNative();
+        if (false && preferences.getBoolean("proxy_enabled", false) && proxySettings.isValid()) {
             if (proxySettings.getType() == ProxySettings.Type.WEB) {
                 int localPort = WebProxyTransport.start(proxySettings.getAddress(), proxySettings.getSecret());
                 native_setProxySettings(currentAccount, "127.0.0.1", localPort != 0 ? localPort : 9, "", "",
@@ -712,6 +714,7 @@ public class ConnectionsManager extends BaseController {
             packageId = "";
         }
 
+        org.telegram.tgeshka.TGeshkaGateway.markInitialized(currentAccount);
         native_init(currentAccount, version, layer, apiId, deviceModel, systemVersion, appVersion, langCode, systemLangCode, configPath, logPath, regId, cFingerprint, installer, packageId, timezoneOffset, userId, userPremium, enablePushConnection, ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), SharedConfig.measureDevicePerformanceClass());
         checkConnection();
     }
@@ -898,6 +901,10 @@ public class ConnectionsManager extends BaseController {
     }
 
     public static void onRequestNewServerIpAndPort(final int second, final int currentAccount) {
+        if (true) {
+            // TGeshka: no DNS-over-HTTPS or other backup config requests, the gateway knows the DCs.
+            return;
+        }
         Utilities.globalQueue.postRunnable(() -> {
             boolean networkOnline = ApplicationLoader.isNetworkOnline();
             Utilities.stageQueue.postRunnable(() -> {
@@ -935,6 +942,10 @@ public class ConnectionsManager extends BaseController {
     }
 
     public static void getHostByName(String hostName, long address) {
+        if (true) {
+            org.telegram.tgeshka.TGeshkaGateway.resolveHost(hostName, address);
+            return;
+        }
         AndroidUtilities.runOnUIThread(() -> {
             ResolvedDomain resolvedDomain = dnsCache.get(hostName);
             if (resolvedDomain != null && SystemClock.elapsedRealtime() - resolvedDomain.ttl < 5 * 60 * 1000) {
@@ -983,6 +994,10 @@ public class ConnectionsManager extends BaseController {
     }
 
     public static void setProxySettings(boolean enabled, ProxySettings settings) {
+        if (true) {
+            // TGeshka: proxies are not used, the connection goes through the gateway.
+            return;
+        }
         String address = "";
         int port = 0;
         String username = "";
@@ -1582,6 +1597,15 @@ public class ConnectionsManager extends BaseController {
     }
 
     @Keep
+    public static void onGatewayError(final int currentAccount, final int code, final String reason) {
+        org.telegram.tgeshka.TGeshkaGateway.onNativeError(code, reason);
+    }
+
+    public static native void native_setGatewayConfig(String host, int port, String path, String token, String client);
+    public static native void native_applyGatewayConfig(int currentAccount);
+    public static native long[] native_getGatewayStats();
+    public static native boolean native_verifyEd25519(byte[] signature, byte[] message, byte[] publicKey);
+
     public static void onCaptchaCheck(final int currentAccount, final int requestToken, final int generation, final String action, final String key_id) {
         AndroidUtilities.runOnUIThread(() -> CaptchaController.request(currentAccount, requestToken, generation, action, key_id));
     }

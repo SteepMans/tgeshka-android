@@ -115,6 +115,8 @@ add_library(tgnet STATIC
         tgnet/ConnectionsManager.cpp
         tgnet/TLSHello.cpp
         tgnet/ConnectionSocket.cpp
+        tgnet/ConnectionSocketGateway.cpp
+        tgnet/Gateway.cpp
         tgnet/Datacenter.cpp
         tgnet/EventObject.cpp
         tgnet/FileLog.cpp
@@ -136,6 +138,7 @@ target_include_directories(tgnet PUBLIC
         third_party/boringssl/include
         openssl/include)
 target_link_libraries(tgnet
+        ssl
         crypto)
 
 # tlottie (prebuilt Rust static library)

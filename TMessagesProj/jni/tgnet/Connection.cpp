@@ -446,7 +446,9 @@ void Connection::sendData(NativeByteBuffer *buff, bool reportAck, bool encrypted
     uint32_t packetLength;
 
     uint8_t useSecret = 0;
-    if (!firstPacketSent) {
+    // TGeshka: the gateway reads the init without a secret (obfuscated2 with
+    // abridged, like a direct connection), the DC id is always written below.
+    if (!firstPacketSent && false) {
         if (!overrideProxyAddress.empty()) {
             if (!overrideProxySecret.empty()) {
                 useSecret = 1;
@@ -470,6 +472,9 @@ void Connection::sendData(NativeByteBuffer *buff, bool reportAck, bool encrypted
         } else {
             currentProtocolType = ProtocolTypeEF;
         }
+    }
+    if (!firstPacketSent) {
+        currentProtocolType = ProtocolTypeEF;
     }
 
     uint32_t additinalPacketSize = 0;
@@ -533,7 +538,7 @@ void Connection::sendData(NativeByteBuffer *buff, bool reportAck, bool encrypted
                     bytes[56] = bytes[57] = bytes[58] = bytes[59] = 0xee;
                 }
 
-                if (useSecret != 0) {
+                {
                     int16_t datacenterId;
                     if (isMediaConnection) {
                         if (ConnectionsManager::getInstance(currentDatacenter->instanceNum).testBackend) {
