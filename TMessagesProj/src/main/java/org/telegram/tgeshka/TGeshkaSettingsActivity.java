@@ -52,6 +52,7 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
     private static final int ID_UPDATES = 13;
     private static final int ID_ABOUT = 14;
     private static final int ID_NOTIFICATIONS = 15;
+    private static final int ID_LAST_PUSH = 16;
 
     private boolean paused = true;
     private boolean checking;
@@ -148,8 +149,9 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
         items.add(UItem.asButton(ID_NOTIFICATIONS, getString(R.string.TGeshkaNotifications),
                 getString(TGeshkaKeepAlive.areNotificationsAllowed() ? R.string.TGeshkaNotificationsAllowed : R.string.TGeshkaNotificationsBlocked)));
         items.add(UItem.asCheck(ID_KEEP_ALIVE, getString(R.string.TGeshkaKeepAlive)).setChecked(TGeshkaKeepAlive.isEnabled()));
+        items.add(UItem.asButton(ID_LAST_PUSH, getString(R.string.TGeshkaLastPush), lastPushText()));
         items.add(UItem.asButton(ID_BATTERY, getString(R.string.TGeshkaBattery)));
-        items.add(UItem.asShadow(getString(R.string.TGeshkaKeepAliveInfo) + "\n\n" + getString(R.string.TGeshkaBatteryInfo)));
+        items.add(UItem.asShadow(getString(R.string.TGeshkaKeepAliveInfo) + "\n\n" + getString(R.string.TGeshkaLastPushInfo) + "\n\n" + getString(R.string.TGeshkaBatteryInfo)));
 
         items.add(UItem.asHeader(getString(R.string.TGeshkaUpdatesHeader)));
         items.add(UItem.asButton(ID_UPDATES, getString(R.string.TGeshkaCheckUpdates), BuildConfig.TGESHKA_VERSION));
@@ -166,6 +168,14 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
             return getString(R.string.TGeshkaStatusConnected);
         }
         return getString(R.string.TGeshkaStatusConnecting);
+    }
+
+    private String lastPushText() {
+        long time = TGeshkaKeepAlive.getLastInternalPush();
+        if (time == 0) {
+            return getString(R.string.TGeshkaLastPushNone);
+        }
+        return new SimpleDateFormat("dd.MM HH:mm:ss", Locale.US).format(new Date(time));
     }
 
     private String errorText(TGeshkaGateway.LastError error) {

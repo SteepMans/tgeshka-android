@@ -991,6 +991,7 @@ public class ConnectionsManager extends BaseController {
     }
 
     public static void onInternalPushReceived(final int currentAccount) {
+        org.telegram.tgeshka.TGeshkaKeepAlive.onInternalPush();
         KeepAliveJob.startJob();
     }
 

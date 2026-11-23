@@ -52,13 +52,44 @@ public class TGeshkaKeepAlive {
 
     private static final String PREFS = "tgeshka_keepalive";
     private static final String PREF_NOTIFICATIONS_ASKED = "notifications_asked";
+    private static final String PREF_LAST_PUSH = "last_internal_push";
     private static final long NOTIFICATIONS_ASK_INTERVAL = 24L * 60 * 60 * 1000;
     private static final long NOTIFICATIONS_ASK_DELAY = 5_000;
+    // Enough to wake the network, fetch the new messages through the gateway and post the notification.
+    private static final long PUSH_WAKE_MILLIS = 20_000;
 
     private static Activity resumedActivity;
+    private static PowerManager.WakeLock pushWakeLock;
 
     private static SharedPreferences preferences() {
         return ApplicationLoader.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    /**
+     * Telegram sent the "new messages" signal into the push connection. Without FCM nobody
+     * keeps the phone awake while tgnet wakes the network and fetches the messages, and the
+     * keep-alive job is postponed by the system in Doze, so hold a short wake lock.
+     * Called on the tgnet thread.
+     */
+    public static void onInternalPush() {
+        try {
+            synchronized (TGeshkaKeepAlive.class) {
+                if (pushWakeLock == null) {
+                    PowerManager powerManager = (PowerManager) ApplicationLoader.applicationContext.getSystemService(Context.POWER_SERVICE);
+                    pushWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "tgeshka:push");
+                    pushWakeLock.setReferenceCounted(false);
+                }
+                pushWakeLock.acquire(PUSH_WAKE_MILLIS);
+            }
+            preferences().edit().putLong(PREF_LAST_PUSH, System.currentTimeMillis()).apply();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** Time of the last "new messages" signal from Telegram, 0 if there was none. */
+    public static long getLastInternalPush() {
+        return preferences().getLong(PREF_LAST_PUSH, 0);
     }
 
     public static boolean areNotificationsAllowed() {
