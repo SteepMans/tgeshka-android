@@ -120,9 +120,15 @@ android {
     ndkVersion "27.2.12479018"
 
 
-    externalNativeBuild {
-        cmake {
-            path 'jni/CMakeLists.txt'
+    // TGeshka: CI reuses the native libraries of an earlier build when jni/ did not
+    // change, -PtgeshkaPrebuiltNative=<dir with <abi>/*.so>, and skips CMake.
+    if (project.hasProperty("tgeshkaPrebuiltNative")) {
+        sourceSets.main.jniLibs.srcDirs += [project.property("tgeshkaPrebuiltNative")]
+    } else {
+        externalNativeBuild {
+            cmake {
+                path 'jni/CMakeLists.txt'
+            }
         }
     }
 
@@ -163,7 +169,18 @@ android {
             cmake {
                 version '3.22.1'
                 arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23' //, '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+                // TGeshka: ccache in CI (TGESHKA_CCACHE=1).
+                if (System.getenv("TGESHKA_CCACHE") == "1") {
+                    arguments '-DCMAKE_C_COMPILER_LAUNCHER=ccache', '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'
+                }
                 targets 'tmessages.49', 'twidget'
+            }
+        }
+
+        // TGeshka: CI builds one ABI per job, the native code only for it.
+        if (project.hasProperty("tgeshkaAbi")) {
+            ndk {
+                abiFilters project.property("tgeshkaAbi")
             }
         }
     }
