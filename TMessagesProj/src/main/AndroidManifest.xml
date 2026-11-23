@@ -586,6 +586,8 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name="org.telegram.tgeshka.TGeshkaInstallReceiver" android:exported="false" />
+
         <receiver android:name=".AppStartReceiver" android:enabled="true" android:exported="false">
             <intent-filter>
                 <action android:name="org.telegram.start" />
