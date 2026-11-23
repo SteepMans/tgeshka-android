@@ -323,6 +323,16 @@
     <string name="TGeshkaKeepAliveNotification">TGeshka на связи</string>
     <string name="TGeshkaKeepAliveNotificationText">Соединение через шлюз для уведомлений</string>
     <string name="TGeshkaKeepAliveChannel">Фоновое соединение</string>
+    <string name="TGeshkaNotifications">Уведомления</string>
+    <string name="TGeshkaNotificationsAllowed">Разрешены</string>
+    <string name="TGeshkaNotificationsBlocked">Выключены, открыть настройки</string>
+    <string name="TGeshkaNotificationsOffTitle">Уведомления выключены</string>
+    <string name="TGeshkaNotificationsOffText">TGeshka получает сообщения в фоне, но телефон не даёт их показывать. Разрешите уведомления для TGeshka в настройках телефона.</string>
+    <string name="TGeshkaNotificationsOpenSettings">Открыть настройки</string>
+    <string name="TGeshkaNotificationsLater">Не сейчас</string>
+    <string name="TGeshkaLastPush">Сигнал о новых сообщениях</string>
+    <string name="TGeshkaLastPushNone">Ещё не было</string>
+    <string name="TGeshkaLastPushInfo">«Сигнал о новых сообщениях» — когда Telegram последний раз будил TGeshka в фоне. Если время не меняется, хотя сообщения приходят, фоновая связь не работает.</string>
     <string name="TGeshkaUpdatesHeader">Обновления</string>
     <string name="TGeshkaCheckUpdates">Проверить обновления</string>
     <string name="TGeshkaUpdateLatest">Установлена последняя версия</string>

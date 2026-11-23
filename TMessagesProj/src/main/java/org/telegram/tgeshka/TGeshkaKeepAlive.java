@@ -5,7 +5,9 @@
 
 package org.telegram.tgeshka;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -14,14 +16,17 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
 
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.app.ServiceCompat;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
@@ -29,6 +34,8 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.Components.PermissionRequest;
 import org.telegram.ui.LaunchActivity;
 
 /**
@@ -42,6 +49,138 @@ public class TGeshkaKeepAlive {
     private static final int NOTIFICATION_ID = 0x7e5;
     // ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE, API 34.
     private static final int TYPE_SPECIAL_USE = 0x40000000;
+
+    private static final String PREFS = "tgeshka_keepalive";
+    private static final String PREF_NOTIFICATIONS_ASKED = "notifications_asked";
+    private static final String PREF_LAST_PUSH = "last_internal_push";
+    private static final long NOTIFICATIONS_ASK_INTERVAL = 24L * 60 * 60 * 1000;
+    private static final long NOTIFICATIONS_ASK_DELAY = 5_000;
+    // Enough to wake the network, fetch the new messages through the gateway and post the notification.
+    private static final long PUSH_WAKE_MILLIS = 20_000;
+
+    private static Activity resumedActivity;
+    private static PowerManager.WakeLock pushWakeLock;
+
+    private static SharedPreferences preferences() {
+        return ApplicationLoader.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    /**
+     * Telegram sent the "new messages" signal into the push connection. Without FCM nobody
+     * keeps the phone awake while tgnet wakes the network and fetches the messages, and the
+     * keep-alive job is postponed by the system in Doze, so hold a short wake lock.
+     * Called on the tgnet thread.
+     */
+    public static void onInternalPush() {
+        try {
+            synchronized (TGeshkaKeepAlive.class) {
+                if (pushWakeLock == null) {
+                    PowerManager powerManager = (PowerManager) ApplicationLoader.applicationContext.getSystemService(Context.POWER_SERVICE);
+                    pushWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "tgeshka:push");
+                    pushWakeLock.setReferenceCounted(false);
+                }
+                pushWakeLock.acquire(PUSH_WAKE_MILLIS);
+            }
+            preferences().edit().putLong(PREF_LAST_PUSH, System.currentTimeMillis()).apply();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
+
+    /** Time of the last "new messages" signal from Telegram, 0 if there was none. */
+    public static long getLastInternalPush() {
+        return preferences().getLong(PREF_LAST_PUSH, 0);
+    }
+
+    public static boolean areNotificationsAllowed() {
+        try {
+            return NotificationManagerCompat.from(ApplicationLoader.applicationContext).areNotificationsEnabled();
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return true;
+        }
+    }
+
+    public static void openNotificationSettings(Context context) {
+        try {
+            Intent intent;
+            if (Build.VERSION.SDK_INT >= 26) {
+                intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName());
+            } else {
+                intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.getPackageName()));
+            }
+            context.startActivity(intent);
+        } catch (Throwable e) {
+            try {
+                context.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.getPackageName())));
+            } catch (Throwable e2) {
+                FileLog.e(e2);
+            }
+        }
+    }
+
+    private static final Runnable checkNotificationsRunnable = () -> {
+        Activity activity = resumedActivity;
+        if (activity != null && !activity.isFinishing()) {
+            checkNotificationsAllowed(activity);
+        }
+    };
+
+    /**
+     * Without the permission to post notifications the background connection is useless:
+     * messages arrive, but the phone stays silent. A few seconds after the app comes to the
+     * screen ask for the permission or point to the settings, at most once a day.
+     */
+    public static void onActivityResumed(Activity activity) {
+        resumedActivity = activity;
+        AndroidUtilities.cancelRunOnUIThread(checkNotificationsRunnable);
+        AndroidUtilities.runOnUIThread(checkNotificationsRunnable, NOTIFICATIONS_ASK_DELAY);
+    }
+
+    public static void onActivityPaused(Activity activity) {
+        if (resumedActivity == activity) {
+            resumedActivity = null;
+        }
+        AndroidUtilities.cancelRunOnUIThread(checkNotificationsRunnable);
+    }
+
+    private static void checkNotificationsAllowed(Activity activity) {
+        if (areNotificationsAllowed() || !UserConfig.getInstance(UserConfig.selectedAccount).isClientActivated()) {
+            return;
+        }
+        SharedPreferences preferences = preferences();
+        long now = System.currentTimeMillis();
+        if (Math.abs(now - preferences.getLong(PREF_NOTIFICATIONS_ASKED, 0)) < NOTIFICATIONS_ASK_INTERVAL) {
+            return;
+        }
+        preferences.edit().putLong(PREF_NOTIFICATIONS_ASKED, now).apply();
+        if (Build.VERSION.SDK_INT >= 33 && activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            PermissionRequest.requestPermission(Manifest.permission.POST_NOTIFICATIONS, granted -> {
+                if (!granted || !areNotificationsAllowed()) {
+                    showNotificationsBlocked(activity);
+                }
+            });
+        } else {
+            showNotificationsBlocked(activity);
+        }
+    }
+
+    private static void showNotificationsBlocked(Activity activity) {
+        if (activity == null || activity.isFinishing() || areNotificationsAllowed()) {
+            return;
+        }
+        try {
+            new AlertDialog.Builder(activity)
+                    .setTitle(LocaleController.getString(R.string.TGeshkaNotificationsOffTitle))
+                    .setMessage(LocaleController.getString(R.string.TGeshkaNotificationsOffText))
+                    .setPositiveButton(LocaleController.getString(R.string.TGeshkaNotificationsOpenSettings), (dialog, which) -> openNotificationSettings(activity))
+                    .setNegativeButton(LocaleController.getString(R.string.TGeshkaNotificationsLater), null)
+                    .show();
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+    }
 
     public static boolean isEnabled() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
