@@ -51,6 +51,7 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
     private static final int ID_BATTERY = 12;
     private static final int ID_UPDATES = 13;
     private static final int ID_ABOUT = 14;
+    private static final int ID_NOTIFICATIONS = 15;
 
     private boolean paused = true;
     private boolean checking;
@@ -144,6 +145,8 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
         items.add(UItem.asShadow(null));
 
         items.add(UItem.asHeader(getString(R.string.TGeshkaKeepAliveHeader)));
+        items.add(UItem.asButton(ID_NOTIFICATIONS, getString(R.string.TGeshkaNotifications),
+                getString(TGeshkaKeepAlive.areNotificationsAllowed() ? R.string.TGeshkaNotificationsAllowed : R.string.TGeshkaNotificationsBlocked)));
         items.add(UItem.asCheck(ID_KEEP_ALIVE, getString(R.string.TGeshkaKeepAlive)).setChecked(TGeshkaKeepAlive.isEnabled()));
         items.add(UItem.asButton(ID_BATTERY, getString(R.string.TGeshkaBattery)));
         items.add(UItem.asShadow(getString(R.string.TGeshkaKeepAliveInfo) + "\n\n" + getString(R.string.TGeshkaBatteryInfo)));
@@ -196,6 +199,9 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
                 TGeshkaGateway.applyToNative();
                 TGeshkaGateway.reconnect();
                 Toast.makeText(getParentActivity(), getString(R.string.TGeshkaReconnectDone), Toast.LENGTH_SHORT).show();
+                break;
+            case ID_NOTIFICATIONS:
+                TGeshkaKeepAlive.openNotificationSettings(getParentActivity());
                 break;
             case ID_KEEP_ALIVE:
                 TGeshkaKeepAlive.setEnabled(!TGeshkaKeepAlive.isEnabled());
