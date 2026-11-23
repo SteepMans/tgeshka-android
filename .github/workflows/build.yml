@@ -78,6 +78,48 @@ jobs:
             echo "version=$(grep '^TGESHKA_VERSION=' gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
           fi
 
+      # Native libraries depend only on jni/ (with submodule commits), the NDK and
+      # the native settings in TMessagesProj/build.gradle: when these are the same,
+      # the .so files of an earlier build are reused and CMake does not run.
+      - name: Native key
+        id: native
+        run: |
+          {
+            git ls-tree -r HEAD TMessagesProj/jni
+            echo "ndk ${NDK_VERSION}"
+            grep -nE "cmake|abiFilters|ANDROID_|ccache|targets|ndk" TMessagesProj/build.gradle
+          } | sha256sum | cut -c1-40 > "$RUNNER_TEMP/native.key"
+          echo "key=$(cat "$RUNNER_TEMP/native.key")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore native libraries
+        id: so
+        uses: actions/cache/restore@v4
+        with:
+          path: native-prebuilt
+          key: native-so-v1-${{ matrix.abi }}-${{ steps.native.outputs.key }}
+
+      - name: ccache
+        if: steps.so.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y -qq ccache > /dev/null
+          {
+            echo "TGESHKA_CCACHE=1"
+            echo "CCACHE_DIR=$HOME/.ccache"
+            echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE"
+            echo "CCACHE_NOHASHDIR=true"
+            echo "CCACHE_COMPILERCHECK=string:${NDK_VERSION}"
+            echo "CCACHE_MAXSIZE=1500M"
+            echo "CCACHE_COMPRESS=true"
+          } >> "$GITHUB_ENV"
+
+      - name: Restore ccache
+        if: steps.so.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.ccache
+          key: ccache-v1-${{ matrix.abi }}-${{ steps.native.outputs.key }}
+          restore-keys: ccache-v1-${{ matrix.abi }}-
+
       - name: Signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.TGESHKA_KEYSTORE_BASE64 }}
@@ -96,12 +138,38 @@ jobs:
           TGESHKA_API_HASH: ${{ secrets.TGESHKA_API_HASH }}
           TGESHKA_GATEWAY_URL: ${{ secrets.TGESHKA_GATEWAY_URL }}
           TGESHKA_KEYSTORE_PASSWORD: ${{ secrets.TGESHKA_KEYSTORE_PASSWORD }}
+          PREBUILT: ${{ steps.so.outputs.cache-hit == 'true' && format('-PtgeshkaPrebuiltNative={0}/native-prebuilt', github.workspace) || '' }}
         run: |
+          [ -n "$PREBUILT" ] && ls -la native-prebuilt/*
           ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx5g -Dorg.gradle.workers.max=4 \
-            :TMessagesProj_App:assembleAfatRelease -PtgeshkaAbi=${{ matrix.abi }}
+            :TMessagesProj_App:assembleAfatRelease -PtgeshkaAbi=${{ matrix.abi }} $PREBUILT
           mkdir -p out
           cp TMessagesProj_App/build/outputs/apk/afat/release/app.apk "out/TGeshka-${TGESHKA_VERSION}-${{ matrix.abi }}.apk"
           ls -la out
+
+      - name: Collect native libraries
+        if: steps.so.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "native-prebuilt/${{ matrix.abi }}"
+          find TMessagesProj/build/intermediates/cxx -path "*/obj/${{ matrix.abi }}/*.so" -exec cp {} "native-prebuilt/${{ matrix.abi }}/" \;
+          ls -la "native-prebuilt/${{ matrix.abi }}"
+          # An empty cache would give an APK without native code later on.
+          ls "native-prebuilt/${{ matrix.abi }}"/libtmessages.*.so "native-prebuilt/${{ matrix.abi }}"/libtwidget.so
+          ccache -s || true
+
+      - name: Save native libraries
+        if: steps.so.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: native-prebuilt
+          key: native-so-v1-${{ matrix.abi }}-${{ steps.native.outputs.key }}
+
+      - name: Save ccache
+        if: steps.so.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.ccache
+          key: ccache-v1-${{ matrix.abi }}-${{ steps.native.outputs.key }}
 
       - uses: actions/upload-artifact@v4
         with:
