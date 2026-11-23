@@ -3780,6 +3780,12 @@ void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, st
 }
 
 void ConnectionsManager::setProxySettings(std::string address, uint16_t port, std::string username, std::string password, std::string secret) {
+    // TGeshka: user proxies are ignored, all connections go through the gateway.
+    address = "";
+    port = 1080;
+    username = "";
+    password = "";
+    secret = "";
     scheduleTask([&, address, port, username, password, secret] {
         std::string newSecret = decodeSecret(secret);
         bool secretChanged = proxySecret != newSecret;
@@ -3816,6 +3822,19 @@ void ConnectionsManager::setProxySettings(std::string address, uint16_t port, st
             }
             processRequestQueue(0, 0);
         }
+    });
+}
+
+void ConnectionsManager::applyGatewayConfig() {
+    scheduleTask([&] {
+        for (auto & datacenter : datacenters) {
+            datacenter.second->suspendConnections(true);
+        }
+        Datacenter *datacenter = getDatacenterWithId(DEFAULT_DATACENTER_ID);
+        if (datacenter != nullptr && datacenter->isHandshakingAny()) {
+            datacenter->beginHandshake(HandshakeTypeCurrent, true);
+        }
+        processRequestQueue(0, 0);
     });
 }
 

@@ -7,6 +7,8 @@
 #include "tgnet/ConnectionSocket.h"
 #include "tgnet/FileLog.h"
 #include "tgnet/Handshake.h"
+#include "tgnet/Gateway.h"
+#include <openssl/curve25519.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <openssl/bn.h>
@@ -39,6 +41,7 @@ jmethodID jclass_ConnectionsManager_getInitFlags;
 jmethodID jclass_ConnectionsManager_onPremiumFloodWait;
 jmethodID jclass_ConnectionsManager_onIntegrityCheckClassic;
 jmethodID jclass_ConnectionsManager_onCaptchaCheck;
+jmethodID jclass_ConnectionsManager_onGatewayError;
 
 bool check_utf8(const char *data, size_t len);
 
@@ -410,7 +413,69 @@ class Delegate : public ConnectiosManagerDelegate {
         jniEnv[instanceNum]->DeleteLocalRef(keyIdStr);
     }
 
+    void onGatewayError(int32_t instanceNum, int32_t code, std::string reason) {
+        jstring reasonStr = jniEnv[instanceNum]->NewStringUTF(reason.c_str());
+        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onGatewayError, instanceNum, code, reasonStr);
+        jniEnv[instanceNum]->DeleteLocalRef(reasonStr);
+    }
+
 };
+
+static std::string jstringToString(JNIEnv *env, jstring value) {
+    if (value == nullptr) {
+        return "";
+    }
+    const char *chars = env->GetStringUTFChars(value, 0);
+    std::string result = chars != nullptr ? std::string(chars) : "";
+    if (chars != nullptr) {
+        env->ReleaseStringUTFChars(value, chars);
+    }
+    return result;
+}
+
+void setGatewayConfig(JNIEnv *env, jclass c, jstring host, jint port, jstring path, jstring token, jstring client) {
+    GatewayConfig config;
+    config.host = jstringToString(env, host);
+    config.port = (uint16_t) port;
+    config.path = jstringToString(env, path);
+    config.token = jstringToString(env, token);
+    config.client = jstringToString(env, client);
+    Gateway::setConfig(config);
+}
+
+void applyGatewayConfig(JNIEnv *env, jclass c, jint instanceNum) {
+    ConnectionsManager::getInstance(instanceNum).applyGatewayConfig();
+}
+
+jlongArray getGatewayStats(JNIEnv *env, jclass c) {
+    jlong values[5] = {
+        (jlong) Gateway::openConnections.load(),
+        (jlong) Gateway::bytesSent.load(),
+        (jlong) Gateway::bytesReceived.load(),
+        (jlong) Gateway::lastConnectMillis.load(),
+        (jlong) Gateway::lastErrorCode.load(),
+    };
+    jlongArray result = env->NewLongArray(5);
+    env->SetLongArrayRegion(result, 0, 5, values);
+    return result;
+}
+
+jboolean verifyEd25519(JNIEnv *env, jclass c, jbyteArray signature, jbyteArray message, jbyteArray publicKey) {
+    if (signature == nullptr || message == nullptr || publicKey == nullptr) {
+        return JNI_FALSE;
+    }
+    if (env->GetArrayLength(signature) != 64 || env->GetArrayLength(publicKey) != 32) {
+        return JNI_FALSE;
+    }
+    jbyte *sig = env->GetByteArrayElements(signature, nullptr);
+    jbyte *msg = env->GetByteArrayElements(message, nullptr);
+    jbyte *key = env->GetByteArrayElements(publicKey, nullptr);
+    int ok = ED25519_verify((const uint8_t *) msg, (size_t) env->GetArrayLength(message), (const uint8_t *) sig, (const uint8_t *) key);
+    env->ReleaseByteArrayElements(signature, sig, JNI_ABORT);
+    env->ReleaseByteArrayElements(message, msg, JNI_ABORT);
+    env->ReleaseByteArrayElements(publicKey, key, JNI_ABORT);
+    return ok == 1 ? JNI_TRUE : JNI_FALSE;
+}
 
 void onHostNameResolved(JNIEnv *env, jclass c, jstring host, jlong address, jstring ip) {
     const char *ipStr = env->GetStringUTFChars(ip, 0);
@@ -557,6 +622,10 @@ static JNINativeMethod ConnectionsManagerMethods[] = {
         {"native_receivedIntegrityCheckClassic", "(IILjava/lang/String;Ljava/lang/String;)V", (void *) receivedIntegrityCheckClassic},
         {"native_receivedCaptchaResult", "(IIILjava/lang/String;)V", (void *) receivedCaptchaResult},
         {"native_isGoodPrime", "([BI)Z", (void *) isGoodPrime},
+        {"native_setGatewayConfig", "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", (void *) setGatewayConfig},
+        {"native_applyGatewayConfig", "(I)V", (void *) applyGatewayConfig},
+        {"native_getGatewayStats", "()[J", (void *) getGatewayStats},
+        {"native_verifyEd25519", "([B[B[B)Z", (void *) verifyEd25519},
 };
 
 
@@ -687,6 +756,10 @@ extern "C" int registerNativeTgNetFunctions(JavaVM *vm, JNIEnv *env) {
     }
     jclass_ConnectionsManager_onCaptchaCheck = env->GetStaticMethodID(jclass_ConnectionsManager, "onCaptchaCheck", "(IIILjava/lang/String;Ljava/lang/String;)V");
     if (jclass_ConnectionsManager_onCaptchaCheck == 0) {
+        return JNI_FALSE;
+    }
+    jclass_ConnectionsManager_onGatewayError = env->GetStaticMethodID(jclass_ConnectionsManager, "onGatewayError", "(IILjava/lang/String;)V");
+    if (jclass_ConnectionsManager_onGatewayError == 0) {
         return JNI_FALSE;
     }
 

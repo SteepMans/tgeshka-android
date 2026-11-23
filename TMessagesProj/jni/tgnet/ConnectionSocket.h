@@ -18,6 +18,7 @@ class ConnectionsManager;
 class ByteStream;
 class EventObject;
 class ByteArray;
+class GatewaySession;
 
 class ConnectionSocket {
 
@@ -81,6 +82,12 @@ private:
     int8_t tlsState = 0;
 
     uint8_t proxyAuthState;
+
+    GatewaySession *gateway = nullptr;
+    void openGatewayConnection(std::string address, uint16_t port, bool ipv6);
+    void onGatewayEvent(uint32_t events);
+    bool gatewayPump();
+    void gatewayFailed(int32_t error);
 
     int32_t checkSocketError(int32_t *error);
     void closeSocket(int32_t reason, int32_t error);

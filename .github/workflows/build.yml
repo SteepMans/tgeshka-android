@@ -1,0 +1,203 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NDK_VERSION: 27.2.12479018
+
+jobs:
+  java:
+    name: Java compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile Java
+        run: ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx6g :TMessagesProj_App:compileAfatReleaseJavaWithJavac -PtgeshkaAbi=arm64-v8a
+
+  apk:
+    name: APK ${{ matrix.abi }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift /usr/local/share/powershell /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}" "cmake;3.22.1" "build-tools;36.0.0" "platforms;android-36" > /dev/null
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(grep '^TGESHKA_VERSION=' gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TGESHKA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "TGESHKA_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          else
+            echo "No signing key (pull request from a fork?), the APK is signed with the test key"
+          fi
+
+      - name: Build APK
+        env:
+          TGESHKA_VERSION: ${{ steps.version.outputs.version }}
+          TGESHKA_API_ID: ${{ secrets.TGESHKA_API_ID }}
+          TGESHKA_API_HASH: ${{ secrets.TGESHKA_API_HASH }}
+          TGESHKA_GATEWAY_URL: ${{ secrets.TGESHKA_GATEWAY_URL }}
+          TGESHKA_KEYSTORE_PASSWORD: ${{ secrets.TGESHKA_KEYSTORE_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx5g -Dorg.gradle.workers.max=4 \
+            :TMessagesProj_App:assembleAfatRelease -PtgeshkaAbi=${{ matrix.abi }}
+          mkdir -p out
+          cp TMessagesProj_App/build/outputs/apk/afat/release/app.apk "out/TGeshka-${TGESHKA_VERSION}-${{ matrix.abi }}.apk"
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.abi }}
+          path: out/*.apk
+          retention-days: 14
+
+  emulator:
+    name: Emulator smoke test
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-x86_64
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TGESHKA_TEST_TOKEN: ${{ secrets.TGESHKA_TEST_TOKEN }}
+          TGESHKA_GATEWAY_URL: ${{ secrets.TGESHKA_GATEWAY_URL }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/emulator-test.sh "$(ls apk/*.apk | head -1)" emulator-out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-out
+          path: |
+            emulator-out/*.png
+            emulator-out/summary.txt
+            emulator-out/net.txt
+          retention-days: 14
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: apk
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-arm64-v8a
+          path: out
+
+      - name: Update manifest
+        env:
+          SIGNING_KEY: ${{ secrets.TGESHKA_UPDATE_SIGNING_KEY }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          APK="TGeshka-${VERSION}-arm64-v8a.apk"
+          pip install --quiet cryptography
+          python3 - "$VERSION" "out/$APK" > out/update-manifest.json <<'PY'
+          import base64, hashlib, json, os, sys
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+          version, path = sys.argv[1], sys.argv[2]
+          data = open(path, 'rb').read()
+          digest = hashlib.sha256(data).digest()
+          key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(os.environ['SIGNING_KEY']))
+          print(json.dumps({
+              'platform': 'android',
+              'version': version,
+              'min_version': '',
+              'sha256': digest.hex(),
+              'size': len(data),
+              'signature': base64.b64encode(key.sign(digest)).decode(),
+              'notes': 'TGeshka ' + version,
+              'package': os.path.basename(path),
+          }, ensure_ascii=False, indent=2))
+          PY
+          cat out/update-manifest.json
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "TGeshka ${TAG#v}" --notes "TGeshka для Android ${TAG#v}"
+          fi
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber out/*.apk out/update-manifest.json

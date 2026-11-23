@@ -31,6 +31,7 @@
 #include "BuffersStorage.h"
 #include "Connection.h"
 #include "TLSHello.h"
+#include "Gateway.h"
 #include <random>
 
 #ifndef EPOLLRDHUP
@@ -63,6 +64,10 @@ ConnectionSocket::~ConnectionSocket() {
         tlsBuffer->reuse();
         tlsBuffer = nullptr;
     }
+    if (gateway != nullptr) {
+        delete gateway;
+        gateway = nullptr;
+    }
 }
 
 void ConnectionSocket::openConnection(std::string address, uint16_t port, std::string secret, bool ipv6, int32_t networkType) {
@@ -77,6 +82,11 @@ void ConnectionSocket::openConnection(std::string address, uint16_t port, std::s
 
     memset(&socketAddress, 0, sizeof(sockaddr_in));
     memset(&socketAddress6, 0, sizeof(sockaddr_in6));
+
+    // TGeshka: every connection goes through the gateway. Direct connections
+    // to Telegram and user proxies are never used.
+    openGatewayConnection(address, port, ipv6);
+    return;
 
     std::string *proxyAddress = &overrideProxyAddress;
     std::string *proxySecret = &overrideProxySecret;
@@ -260,6 +270,10 @@ int32_t ConnectionSocket::checkSocketError(int32_t *error) {
 void ConnectionSocket::closeSocket(int32_t reason, int32_t error) {
     lastEventTime = ConnectionsManager::getInstance(instanceNum).getCurrentTimeMonotonicMillis();
     ConnectionsManager::getInstance(instanceNum).detachConnection(this);
+    if (gateway != nullptr && socketFd >= 0 && reason == 0 && gateway->state == GatewayStateOpen) {
+        gateway->queueClose(1000);
+        gateway->flush();
+    }
     if (socketFd >= 0) {
         epoll_ctl(ConnectionsManager::getInstance(instanceNum).epolFd, EPOLL_CTL_DEL, socketFd, nullptr);
         if (close(socketFd) != 0) {
@@ -277,10 +291,21 @@ void ConnectionSocket::closeSocket(int32_t reason, int32_t error) {
         tlsBuffer->reuse();
         tlsBuffer = nullptr;
     }
+    if (gateway != nullptr) {
+        if (gateway->state == GatewayStateOpen) {
+            Gateway::openConnections--;
+        }
+        delete gateway;
+        gateway = nullptr;
+    }
     onDisconnected(reason, error);
 }
 
 void ConnectionSocket::onEvent(uint32_t events) {
+    if (gateway != nullptr) {
+        onGatewayEvent(events);
+        return;
+    }
     if (events & EPOLLIN) {
         int32_t error;
         if (checkSocketError(&error) != 0) {
@@ -684,8 +709,15 @@ void ConnectionSocket::adjustWriteOp() {
         adjustWriteOpAfterResolve = true;
         return;
     }
+    if (socketFd < 0) {
+        return;
+    }
     eventMask.events = EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET;
-    if (proxyAuthState == 0 && (outgoingByteStream->hasData() || !onConnectedSent) || proxyAuthState == 1 || proxyAuthState == 3 || proxyAuthState == 5 || proxyAuthState == 10) {
+    if (gateway != nullptr) {
+        if (gateway->state == GatewayStateTcpConnecting || gateway->wantWrite || gateway->hasPendingWrite() || (gateway->state == GatewayStateOpen && outgoingByteStream->hasData())) {
+            eventMask.events |= EPOLLOUT;
+        }
+    } else if (proxyAuthState == 0 && (outgoingByteStream->hasData() || !onConnectedSent) || proxyAuthState == 1 || proxyAuthState == 3 || proxyAuthState == 5 || proxyAuthState == 10) {
         eventMask.events |= EPOLLOUT;
     }
     eventMask.data.ptr = eventObject;
@@ -748,6 +780,9 @@ void ConnectionSocket::onHostNameResolved(std::string host, std::string ip, bool
             waitingForHostResolve = "";
             if (ip.empty() || inet_pton(AF_INET, ip.c_str(), &socketAddress.sin_addr.s_addr) != 1) {
                 if (LOGS_ENABLED) DEBUG_E("connection(%p) can't resolve host %s address via delegate", this, host.c_str());
+                if (gateway != nullptr) {
+                    Gateway::reportError(instanceNum, GatewayErrorResolve, "resolve");
+                }
                 closeSocket(1, -1);
                 return;
             }

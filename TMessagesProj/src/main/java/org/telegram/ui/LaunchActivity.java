@@ -657,6 +657,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         checkLayout();
         checkSystemBarColors();
         handleIntent(getIntent(), false, savedInstanceState != null, false, null, true, true);
+        org.telegram.tgeshka.TGeshkaUpdater.checkPeriodically(this);
         try {
             String os1 = Build.DISPLAY;
             String os2 = Build.USER;
@@ -1120,6 +1121,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     private BaseFragment getClientNotActivatedFragment() {
+        if (!org.telegram.tgeshka.TGeshkaGateway.hasToken()) {
+            return new org.telegram.tgeshka.TGeshkaKeyActivity();
+        }
         if (LoginActivity.loadCurrentState(false, currentAccount).getInt("currentViewNum", 0) != 0) {
             return new LoginActivity();
         }
@@ -1558,6 +1562,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             return true;
         }
         if (AndroidUtilities.handleProxyIntent(this, intent, true)) {
+            return true;
+        }
+        if (org.telegram.tgeshka.TGeshkaGateway.handleIntent(this, intent)) {
             return true;
         }
         if (intent == null || !Intent.ACTION_MAIN.equals(intent.getAction())) {
