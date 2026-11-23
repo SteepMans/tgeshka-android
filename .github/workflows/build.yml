@@ -108,3 +108,96 @@ jobs:
           name: apk-${{ matrix.abi }}
           path: out/*.apk
           retention-days: 14
+
+  emulator:
+    name: Emulator smoke test
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-x86_64
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TGESHKA_TEST_TOKEN: ${{ secrets.TGESHKA_TEST_TOKEN }}
+          TGESHKA_GATEWAY_URL: ${{ secrets.TGESHKA_GATEWAY_URL }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/emulator-test.sh "$(ls apk/*.apk | head -1)" emulator-out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-out
+          path: |
+            emulator-out/*.png
+            emulator-out/summary.txt
+            emulator-out/net.txt
+          retention-days: 14
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: apk
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-arm64-v8a
+          path: out
+
+      - name: Update manifest
+        env:
+          SIGNING_KEY: ${{ secrets.TGESHKA_UPDATE_SIGNING_KEY }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          APK="TGeshka-${VERSION}-arm64-v8a.apk"
+          pip install --quiet cryptography
+          python3 - "$VERSION" "out/$APK" > out/update-manifest.json <<'PY'
+          import base64, hashlib, json, os, sys
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+          version, path = sys.argv[1], sys.argv[2]
+          data = open(path, 'rb').read()
+          digest = hashlib.sha256(data).digest()
+          key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(os.environ['SIGNING_KEY']))
+          print(json.dumps({
+              'platform': 'android',
+              'version': version,
+              'min_version': '',
+              'sha256': digest.hex(),
+              'size': len(data),
+              'signature': base64.b64encode(key.sign(digest)).decode(),
+              'notes': 'TGeshka ' + version,
+              'package': os.path.basename(path),
+          }, ensure_ascii=False, indent=2))
+          PY
+          cat out/update-manifest.json
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "TGeshka ${TAG#v}" --notes "TGeshka для Android ${TAG#v}"
+          fi
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber out/*.apk out/update-manifest.json
