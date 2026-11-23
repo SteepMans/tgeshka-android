@@ -1,3 +1,8 @@
+## TGeshka for Android
+
+Unofficial Telegram client based on Telegram for Android: every connection goes through own gateway.
+Not affiliated with Telegram. Details (in Russian): [docs/tgeshka.md](docs/tgeshka.md). Releases: [GitHub Releases](https://github.com/SteepMans/tgeshka-android/releases).
+
 ## Telegram messenger for Android
 
 [Telegram](https://telegram.org) is a messaging app with a focus on speed and security. It’s superfast, simple and free.
