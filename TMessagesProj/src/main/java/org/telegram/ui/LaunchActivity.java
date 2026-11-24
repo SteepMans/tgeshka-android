@@ -658,6 +658,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         checkSystemBarColors();
         handleIntent(getIntent(), false, savedInstanceState != null, false, null, true, true);
         org.telegram.tgeshka.TGeshkaUpdater.checkPeriodically(this);
+        org.telegram.tgeshka.TGeshkaWhatsNew.showAfterUpdate(this);
         try {
             String os1 = Build.DISPLAY;
             String os2 = Build.USER;

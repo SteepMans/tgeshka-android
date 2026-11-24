@@ -310,3 +310,13 @@ task checkVisibility {
 }
 
 preBuild.dependsOn checkVisibility
+
+// TGeshka: CHANGELOG-tgeshka.json from the repository root goes into the assets for
+// Settings > TGeshka > What's new (TGeshkaWhatsNew.java), no network needed.
+def tgeshkaChangelogDir = layout.buildDirectory.dir("generated/tgeshka/assets").get().asFile
+def tgeshkaChangelog = tasks.register("tgeshkaChangelog", Copy) {
+    from rootProject.file("CHANGELOG-tgeshka.json")
+    into tgeshkaChangelogDir
+}
+android.sourceSets.main.assets.srcDir(tgeshkaChangelogDir)
+preBuild.dependsOn tgeshkaChangelog
