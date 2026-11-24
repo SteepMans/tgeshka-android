@@ -16093,7 +16093,17 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             if (adminString != null) {
                 nameWidth -= dp(8);
             }
+            // TGeshka: the badge after the name of a sender who also uses TGeshka.
+            final boolean tgeshkaBadge = needAuthorName && messageObject.customName == null && !viaBot && !viaGuestBot
+                && org.telegram.tgeshka.TGeshkaMembers.isMember(currentUser);
+            if (tgeshkaBadge) {
+                nameWidth -= org.telegram.tgeshka.TGeshkaMembers.badgeWidth(Theme.chat_namePaint);
+            }
             nameStringFinal = TextUtils.ellipsize(nameStringFinal, Theme.chat_namePaint, nameWidth + additionalWidth - (viaBot ? viaWidth : 0), TextUtils.TruncateAt.END);
+            if (tgeshkaBadge) {
+                nameStringFinal = org.telegram.tgeshka.TGeshkaMembers.appendBadge(nameStringFinal, Theme.chat_namePaint);
+                nameWidth += org.telegram.tgeshka.TGeshkaMembers.badgeWidth(Theme.chat_namePaint);
+            }
 
             if (viaGuestBot) {
                 int colorKey;

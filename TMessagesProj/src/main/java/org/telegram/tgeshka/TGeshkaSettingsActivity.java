@@ -54,6 +54,7 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
     private static final int ID_NOTIFICATIONS = 15;
     private static final int ID_LAST_PUSH = 16;
     private static final int ID_WHATS_NEW = 17;
+    private static final int ID_SHOW_MEMBER = 18;
 
     private boolean paused = true;
     private boolean checking;
@@ -154,6 +155,10 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
         items.add(UItem.asButton(ID_BATTERY, getString(R.string.TGeshkaBattery)));
         items.add(UItem.asShadow(getString(R.string.TGeshkaKeepAliveInfo) + "\n\n" + getString(R.string.TGeshkaLastPushInfo) + "\n\n" + getString(R.string.TGeshkaBatteryInfo)));
 
+        items.add(UItem.asHeader(getString(R.string.TGeshkaBadgeHeader)));
+        items.add(UItem.asCheck(ID_SHOW_MEMBER, getString(R.string.TGeshkaShowMember)).setChecked(TGeshkaMembers.isVisible()));
+        items.add(UItem.asShadow(getString(R.string.TGeshkaShowMemberInfo)));
+
         items.add(UItem.asHeader(getString(R.string.TGeshkaUpdatesHeader)));
         items.add(UItem.asButton(ID_UPDATES, getString(R.string.TGeshkaCheckUpdates), BuildConfig.TGESHKA_VERSION));
         items.add(UItem.asButton(ID_WHATS_NEW, getString(R.string.TGeshkaWhatsNew)));
@@ -217,6 +222,10 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
                 break;
             case ID_KEEP_ALIVE:
                 TGeshkaKeepAlive.setEnabled(!TGeshkaKeepAlive.isEnabled());
+                listView.adapter.update(true);
+                break;
+            case ID_SHOW_MEMBER:
+                TGeshkaMembers.setVisible(!TGeshkaMembers.isVisible());
                 listView.adapter.update(true);
                 break;
             case ID_BATTERY:
