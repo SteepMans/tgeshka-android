@@ -1321,6 +1321,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
 
         currentDialogFolderDialogsCount = 0;
         CharSequence nameString = "";
+        boolean tgeshkaBadge = false;
         String timeString = "";
         String countString = null;
         String mentionString = null;
@@ -2298,6 +2299,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         nameString = showTopicIconInName ? ForumUtilities.getTopicSpannedName(forumTopic, Theme.dialogs_namePaint[paintIndex], topicIconInName, false) : AndroidUtilities.escape(forumTopic.title);
                     } else {
                         nameString = AndroidUtilities.escape(UserObject.getUserName(user));
+                        tgeshkaBadge = org.telegram.tgeshka.TGeshkaMembers.isMember(user);
                     }
                 }
                 if (nameString != null && nameString.length() == 0) {
@@ -2445,8 +2447,12 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 channelShouldUseLineWidth = nameStringFinal.length() == TextUtils.ellipsize(nameStringFinal, Theme.dialogs_namePaint[paintIndex], ellipsizeWidth, TextUtils.TruncateAt.END).length();
             }
             nameIsEllipsized = Theme.dialogs_namePaint[paintIndex].measureText(nameStringFinal.toString()) > ellipsizeWidth;
+            if (twoLinesForName) {
+                tgeshkaBadge = false;
+            }
+            int tgeshkaBadgeWidth = tgeshkaBadge ? org.telegram.tgeshka.TGeshkaMembers.badgeWidth(Theme.dialogs_namePaint[paintIndex]) : 0;
             if (!twoLinesForName) {
-                nameStringFinal = TextUtils.ellipsize(nameStringFinal, Theme.dialogs_namePaint[paintIndex], ellipsizeWidth, TextUtils.TruncateAt.END);
+                nameStringFinal = TextUtils.ellipsize(nameStringFinal, Theme.dialogs_namePaint[paintIndex], Math.max(0, ellipsizeWidth - tgeshkaBadgeWidth), TextUtils.TruncateAt.END);
             }
             nameStringFinal = Emoji.replaceEmoji(nameStringFinal, Theme.dialogs_namePaint[paintIndex].getFontMetricsInt(), false);
             if (message != null && message.hasHighlightedWords()) {
@@ -2454,6 +2460,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                 if (s != null) {
                     nameStringFinal = s;
                 }
+            }
+            if (tgeshkaBadge) {
+                nameStringFinal = org.telegram.tgeshka.TGeshkaMembers.appendBadge(nameStringFinal, Theme.dialogs_namePaint[paintIndex]);
             }
             if (twoLinesForName) {
                 nameLayout = StaticLayoutEx.createStaticLayout(nameStringFinal, Theme.dialogs_namePaint[paintIndex], ellipsizeWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false, TextUtils.TruncateAt.END, ellipsizeWidth, 2);

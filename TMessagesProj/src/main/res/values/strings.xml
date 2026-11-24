@@ -11763,6 +11763,9 @@
     <string name="TGeshkaWhatsNewAll">Все изменения</string>
     <string name="TGeshkaWhatsNewClose">Закрыть</string>
     <string name="TGeshkaWhatsNewEmpty">Список изменений недоступен.</string>
+    <string name="TGeshkaBadgeHeader">Значок TGeshka</string>
+    <string name="TGeshkaShowMember">Показывать, что я пользуюсь TGeshka</string>
+    <string name="TGeshkaShowMemberInfo">Пользователи TGeshka видят лавандовый значок рядом с именами друг друга: в списке чатов, в шапке чата, в профиле и у имени в группах. В обычном Telegram ничего не меняется.</string>
     <string name="TGeshkaAbout">О TGeshka</string>
     <string name="TGeshkaAboutText">TGeshka — неофициальный клиент Telegram для своих, основан на Telegram для Android (GPLv2). Все соединения идут через шлюз. Версия %1$s, основа Telegram %2$s.</string>
     <string name="TGeshkaAboutSources">Исходный код</string>

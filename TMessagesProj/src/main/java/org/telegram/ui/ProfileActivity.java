@@ -11755,6 +11755,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 newString = Emoji.replaceEmoji(newString, nameTextView.getPaint().getFontMetricsInt(), false);
             } catch (Exception ignore) {
             }
+            newString = org.telegram.tgeshka.TGeshkaMembers.withBadge(newString, user, nameTextView.getPaint());
             if (copyFromChatActivity) {
                 ChatActivity chatActivity = (ChatActivity) prevFragment;
                 BackupImageView fromAvatarImage = chatActivity.avatarContainer.getAvatarImageView();

@@ -6909,6 +6909,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         WidgetMedia.onAppPaused(true);
         PipCoordinator.getInstance().onActivityPause(this);
         org.telegram.tgeshka.TGeshkaKeepAlive.onActivityPaused(this);
+        org.telegram.tgeshka.TGeshkaMembers.onPaused();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);
         ApplicationLoader.mainInterfacePaused = true;
         int account = currentAccount;
@@ -7222,6 +7223,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         isResumed = true;
         PipCoordinator.getInstance().onActivityResume(this);
         org.telegram.tgeshka.TGeshkaKeepAlive.onActivityResumed(this);
+        org.telegram.tgeshka.TGeshkaMembers.onResumed();
         if (onResumeStaticCallback != null) {
             onResumeStaticCallback.run();
             onResumeStaticCallback = null;
