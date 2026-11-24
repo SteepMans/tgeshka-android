@@ -1186,7 +1186,17 @@ public class DownloadController extends BaseController implements NotificationCe
         }
     }
 
+    // TGeshka: with no app window open the network still wakes every few minutes (app config,
+    // internal pushes). Autodownload and story preloading used those wakes to fetch media nobody
+    // was looking at, so in the background nothing is downloaded automatically.
+    public static boolean isAppInBackground() {
+        return ApplicationLoader.mainInterfacePaused && ApplicationLoader.externalInterfacePaused;
+    }
+
     protected void newDownloadObjectsAvailable(int downloadMask) {
+        if (isAppInBackground()) {
+            return;
+        }
         int mask = getCurrentDownloadMask();
         if ((mask & AUTODOWNLOAD_TYPE_PHOTO) != 0 && (downloadMask & AUTODOWNLOAD_TYPE_PHOTO) != 0 && photoDownloadQueue.isEmpty()) {
             getMessagesStorage().getDownloadQueue(AUTODOWNLOAD_TYPE_PHOTO);
