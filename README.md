@@ -3,6 +3,19 @@
 Unofficial Telegram client based on Telegram for Android: every connection goes through own gateway.
 Not affiliated with Telegram. Details (in Russian): [docs/tgeshka.md](docs/tgeshka.md). Releases: [GitHub Releases](https://github.com/SteepMans/tgeshka-android/releases).
 
+### Что нового
+
+`CHANGELOG-tgeshka.json` в корне — список изменений TGeshka (не Telegram), он попадает в assets при сборке и
+показывается в «Настройки → TGeshka → Что нового» и один раз после обновления. Формат: массив
+`{"version", "date", "items"}`, новые версии сверху, `items` — строки на русском.
+
+- PR с заметным для пользователя изменением дописывает пункт в верхнюю версию; если она уже вышла тегом, заводит
+  новую с версией из `TGESHKA_VERSION` в `gradle.properties`.
+- Пишется словами пользователя, что он видит: без имён классов и деталей сборки, 3–7 коротких пунктов на версию.
+  Изменения только CI и сборки в список не идут.
+- Слияние нового релиза Telegram для Android — одной строкой «Обновлено до Telegram X.Y», напоминание есть в PR
+  от `upstream.yml`.
+
 ## Telegram messenger for Android
 
 [Telegram](https://telegram.org) is a messaging app with a focus on speed and security. It’s superfast, simple and free.

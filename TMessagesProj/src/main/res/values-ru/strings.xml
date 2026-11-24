@@ -342,6 +342,11 @@
     <string name="TGeshkaUpdateBadSignature">Подпись обновления не прошла проверку, установка отменена</string>
     <string name="TGeshkaUpdateFailed">Не удалось проверить обновления: %1$s</string>
     <string name="TGeshkaUpdateInstallPermission">Разрешите TGeshka установку приложений, затем повторите</string>
+    <string name="TGeshkaWhatsNew">Что нового</string>
+    <string name="TGeshkaWhatsNewIn">Что нового в %1$s</string>
+    <string name="TGeshkaWhatsNewAll">Все изменения</string>
+    <string name="TGeshkaWhatsNewClose">Закрыть</string>
+    <string name="TGeshkaWhatsNewEmpty">Список изменений недоступен.</string>
     <string name="TGeshkaAbout">О TGeshka</string>
     <string name="TGeshkaAboutText">TGeshka — неофициальный клиент Telegram для своих, основан на Telegram для Android (GPLv2). Все соединения идут через шлюз. Версия %1$s, основа Telegram %2$s.</string>
     <string name="TGeshkaAboutSources">Исходный код</string>

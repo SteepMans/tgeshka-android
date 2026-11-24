@@ -73,7 +73,9 @@ jobs:
             git commit --no-edit -m "Upstream: Telegram для Android ${VERSION}, конфликты не разрешены"
           fi
           git push origin "$BRANCH"
-          BODY="Слияние релиза Telegram для Android ${VERSION} (DrKLO/Telegram ${COMMIT}) в main."
+          BODY="Слияние релиза Telegram для Android ${VERSION} (DrKLO/Telegram ${COMMIT}) в main.
+
+          Перед мержем дописать в CHANGELOG-tgeshka.json пункт «Обновлено до Telegram ${VERSION}»."
           if [ -n "$CONFLICTS" ]; then
             BODY="${BODY}
 

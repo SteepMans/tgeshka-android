@@ -34,7 +34,7 @@ import java.util.Locale;
 
 import static org.telegram.messenger.LocaleController.getString;
 
-/** Settings → TGeshka: gateway, its state, background connection, updates, about. */
+/** Settings → TGeshka: gateway, its state, background connection, updates, what's new, about. */
 public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshkaGateway.Listener {
 
     private static final int ID_ADDRESS = 1;
@@ -53,6 +53,7 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
     private static final int ID_ABOUT = 14;
     private static final int ID_NOTIFICATIONS = 15;
     private static final int ID_LAST_PUSH = 16;
+    private static final int ID_WHATS_NEW = 17;
 
     private boolean paused = true;
     private boolean checking;
@@ -155,6 +156,7 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
 
         items.add(UItem.asHeader(getString(R.string.TGeshkaUpdatesHeader)));
         items.add(UItem.asButton(ID_UPDATES, getString(R.string.TGeshkaCheckUpdates), BuildConfig.TGESHKA_VERSION));
+        items.add(UItem.asButton(ID_WHATS_NEW, getString(R.string.TGeshkaWhatsNew)));
         items.add(UItem.asButton(ID_ABOUT, getString(R.string.TGeshkaAbout)));
         items.add(UItem.asShadow(null));
     }
@@ -226,6 +228,9 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
                 break;
             case ID_UPDATES:
                 TGeshkaUpdater.check(getParentActivity(), true);
+                break;
+            case ID_WHATS_NEW:
+                presentFragment(new TGeshkaWhatsNewActivity());
                 break;
             case ID_ABOUT:
                 showAbout();
