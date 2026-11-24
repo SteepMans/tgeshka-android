@@ -621,7 +621,7 @@ public class StoriesController {
     }
 
     private void preloadStory(long dialogId, TL_stories.StoryItem storyItem) {
-        if (storyItem.attachPath != null) {
+        if (storyItem.attachPath != null || DownloadController.isAppInBackground()) {
             return;
         }
         boolean canPreloadStories = DownloadController.getInstance(currentAccount).canPreloadStories();
