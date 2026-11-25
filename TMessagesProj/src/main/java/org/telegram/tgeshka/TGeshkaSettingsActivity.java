@@ -7,6 +7,12 @@ package org.telegram.tgeshka;
 
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.verify.domain.DomainVerificationManager;
+import android.content.pm.verify.domain.DomainVerificationUserState;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.view.View;
@@ -15,6 +21,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.LocaleController;
@@ -31,6 +38,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 
 import static org.telegram.messenger.LocaleController.getString;
 
@@ -55,6 +63,7 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
     private static final int ID_LAST_PUSH = 16;
     private static final int ID_WHATS_NEW = 17;
     private static final int ID_SHOW_MEMBER = 18;
+    private static final int ID_LINKS = 19;
 
     private boolean paused = true;
     private boolean checking;
@@ -155,6 +164,10 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
         items.add(UItem.asButton(ID_BATTERY, getString(R.string.TGeshkaBattery)));
         items.add(UItem.asShadow(getString(R.string.TGeshkaKeepAliveInfo) + "\n\n" + getString(R.string.TGeshkaLastPushInfo) + "\n\n" + getString(R.string.TGeshkaBatteryInfo)));
 
+        items.add(UItem.asHeader(getString(R.string.TGeshkaLinksHeader)));
+        items.add(UItem.asButton(ID_LINKS, getString(R.string.TGeshkaLinksOpen), linksText()));
+        items.add(UItem.asShadow(getString(R.string.TGeshkaLinksInfo)));
+
         items.add(UItem.asHeader(getString(R.string.TGeshkaBadgeHeader)));
         items.add(UItem.asCheck(ID_SHOW_MEMBER, getString(R.string.TGeshkaShowMember)).setChecked(TGeshkaMembers.isVisible()));
         items.add(UItem.asShadow(getString(R.string.TGeshkaShowMemberInfo)));
@@ -175,6 +188,45 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
             return getString(R.string.TGeshkaStatusConnected);
         }
         return getString(R.string.TGeshkaStatusConnecting);
+    }
+
+    /** Whether t.me links are allowed to open here: Android 12+ asks the user, TGeshka cannot verify the domain. */
+    private String linksText() {
+        if (Build.VERSION.SDK_INT < 31) {
+            return "";
+        }
+        try {
+            DomainVerificationManager manager = ApplicationLoader.applicationContext.getSystemService(DomainVerificationManager.class);
+            DomainVerificationUserState state = manager != null ? manager.getDomainVerificationUserState(ApplicationLoader.applicationContext.getPackageName()) : null;
+            if (state == null) {
+                return "";
+            }
+            Integer tme = null;
+            for (Map.Entry<String, Integer> entry : state.getHostToStateMap().entrySet()) {
+                if ("t.me".equals(entry.getKey())) {
+                    tme = entry.getValue();
+                }
+            }
+            boolean on = state.isLinkHandlingAllowed() && tme != null && tme != DomainVerificationUserState.DOMAIN_STATE_NONE;
+            return getString(on ? R.string.TGeshkaLinksOn : R.string.TGeshkaLinksOff);
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    private void openLinkSettings() {
+        Uri uri = Uri.parse("package:" + ApplicationLoader.applicationContext.getPackageName());
+        Intent intent = Build.VERSION.SDK_INT >= 31
+                ? new Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS, uri)
+                : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri);
+        try {
+            getParentActivity().startActivity(intent);
+        } catch (Exception e) {
+            try {
+                getParentActivity().startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, uri));
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     private String lastPushText() {
@@ -223,6 +275,9 @@ public class TGeshkaSettingsActivity extends UniversalFragment implements TGeshk
             case ID_KEEP_ALIVE:
                 TGeshkaKeepAlive.setEnabled(!TGeshkaKeepAlive.isEnabled());
                 listView.adapter.update(true);
+                break;
+            case ID_LINKS:
+                openLinkSettings();
                 break;
             case ID_SHOW_MEMBER:
                 TGeshkaMembers.setVisible(!TGeshkaMembers.isVisible());
