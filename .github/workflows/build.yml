@@ -38,6 +38,12 @@ jobs:
       - name: Compile Java
         run: ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx6g :TMessagesProj_App:compileAfatReleaseJavaWithJavac -PtgeshkaAbi=arm64-v8a
 
+      - name: Easter egg tests
+        run: |
+          out=$(mktemp -d)
+          javac -encoding UTF-8 -d "$out" TMessagesProj/src/main/java/org/telegram/tgeshka/TGeshkaEasterEgg.java Tools/tgeshka/tests/TGeshkaEasterEggTest.java
+          java -cp "$out" TGeshkaEasterEggTest tgeshka-easter-egg.txt
+
   apk:
     name: APK ${{ matrix.abi }}
     runs-on: ubuntu-24.04
