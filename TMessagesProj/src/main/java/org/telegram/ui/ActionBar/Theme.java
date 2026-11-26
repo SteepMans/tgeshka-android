@@ -2235,8 +2235,10 @@ public class Theme {
     };
 
     public static int DEFALT_THEME_ACCENT_ID = 99;
-    // TGeshka: lavender accent (0xFF8366CC) of the default theme.
+    // TGeshka: lavender accents by default, the colors of TGeshka Desktop and iOS:
+    // 0xFF8470DE in the day theme "Blue", 0xFF9A86E8 in the night theme "Dark Blue".
     public static int TGESHKA_ACCENT_ID = 5;
+    public static int TGESHKA_NIGHT_ACCENT_ID = 5;
     public static int selectedAutoNightType = AUTO_NIGHT_TYPE_NONE;
     public static boolean autoNightScheduleByLocation;
     public static float autoNightBrighnessThreshold = 0.25f;
@@ -3988,7 +3990,7 @@ public class Theme {
         themeInfo.currentAccentId = TGESHKA_ACCENT_ID;
         themeInfo.sortIndex = 1;
         themeInfo.setAccentColorOptions(
-                new int[]    { 0xFF5890C5,                     0xFF239853,                    0xFFCE5E82,                    0xFF7F63C3,                    0xFF2491AD,                    0xFF299C2F,                    0xFF8854B4,                    0xFF328ACF,                    0xFF43ACC7,                    0xFF52AC44,                    0xFFCD5F93,                    0xFFD28036,                    0xFF8366CC,                    0xFFCE4E57,                    0xFFD3AE40,                    0xFF7B88AB },
+                new int[]    { 0xFF5890C5,                     0xFF239853,                    0xFFCE5E82,                    0xFF7F63C3,                    0xFF2491AD,                    0xFF299C2F,                    0xFF8854B4,                    0xFF328ACF,                    0xFF43ACC7,                    0xFF52AC44,                    0xFFCD5F93,                    0xFFD28036,                    0xFF8470DE,                    0xFFCE4E57,                    0xFFD3AE40,                    0xFF7B88AB },
                 new int[]    { 0xFFB8E18D,                     0xFFFAFBCC,                    0xFFFFF9DC,                    0xFFC14F6E,                    0xFFD1BD1B,                    0xFFFFFAC9,                    0xFFFCF6D8,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000 },
                 new int[]    { 0x00000000,                     0xFFF2FBC9,                    0xFFFBF4DF, 	                         0,	                             0,                    0xFFFDEDB4,                    0xFFFCF7B6,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000 },
                 new int[]    { 0x00000000,                     0xFFdfe2a0,                    0xFFf1b290,                    0xFFd7c1e9,                    0xFFd7b89e,                    0xFFec9e73,                    0xFFcbb0e4,                    0xff9bbce7,                    0xff91c5ec,                    0xff9bc982,                    0xffe4a1c1,                    0xffe3ae7d,                    0xffb8aaea,                    0xffeb9c79,                    0xffd3bc74,                    0xffa0aace },
@@ -4010,9 +4012,10 @@ public class Theme {
         themeInfo.previewBackgroundColor = 0xff5f6e82;
         themeInfo.previewInColor = 0xff76869c;
         themeInfo.previewOutColor = 0xff82a8e3;
+        themeInfo.currentAccentId = TGESHKA_NIGHT_ACCENT_ID;
         themeInfo.sortIndex = 3;
         themeInfo.setAccentColorOptions(
-                new int[]    {                    0xFF927BD4,                    0xFF698AFB,                    0xFF23A7F0,                    0xFF7B71D1,                    0xFF69B955,                    0xFF2990EA,                    0xFF7082E9,                    0xFF66BAED,                    0xff3685fa,                    0xff46c8ed,                    0xff64AC5F,                    0xffeb7cb1,                    0xffee902a,                    0xffa281f0,                    0xffd34324,                    0xffeebd34,                    0xff7f8fab,                    0xff3581e3 },
+                new int[]    {                    0xFF927BD4,                    0xFF698AFB,                    0xFF23A7F0,                    0xFF7B71D1,                    0xFF69B955,                    0xFF2990EA,                    0xFF7082E9,                    0xFF66BAED,                    0xff3685fa,                    0xff46c8ed,                    0xff64AC5F,                    0xffeb7cb1,                    0xffee902a,                    0xFF9A86E8,                    0xffd34324,                    0xffeebd34,                    0xff7f8fab,                    0xff3581e3 },
                 new int[]    {                    0xFF9D5C99,                    0xFF635545,                    0xFF31818B,                    0xFFAD6426,                    0xFF4A7034,                    0xFF335D82,                    0xFF36576F,                    0xFF597563,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000 },
                 new int[]    {                    0xFF604DA8,                    0xFF685D4C,                    0xFF1B6080,                    0xFF99354E,                    0xFF275D3B,                    0xFF317A98,                    0xFF376E87,                    0xFF5E7370,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000,                    0x00000000 },
                 new int[]    {                    0xFF271e2e,                    0xFF171a22,                    0xFF071e1f,                    0xFF100f13,                    0xFF0e1811,                    0xFF0b131c,                    0xFF1d2129,                    0xFF202c2a,                    0xff0e141a,                    0xff162325,                    0xff161d15,                    0xff24191e,                    0xff251b13,                    0xff1f1d29,                    0xff22160e,                    0xff272115,                    0xff171a1b,                    0xff0e141a },
@@ -4186,12 +4189,14 @@ public class Theme {
                 editor.commit();
             }
 
+            tgeshkaMigrateLavender(themeConfig);
+
             SharedPreferences.Editor oldEditor = null;
             SharedPreferences.Editor oldEditorNew = null;
             for (ThemeInfo info : themesDict.values()) {
                 if (info.assetName != null && info.accentBaseColor != 0) {
                     String accents = themeConfig.getString("accents_" + info.assetName, null);
-                    info.currentAccentId = themeConfig.getInt("accent_current_" + info.assetName, "bluebubbles.attheme".equals(info.assetName) ? TGESHKA_ACCENT_ID : (info.firstAccentIsDefault ? DEFALT_THEME_ACCENT_ID : 0));
+                    info.currentAccentId = themeConfig.getInt("accent_current_" + info.assetName, tgeshkaDefaultAccentId(info));
                     ArrayList<ThemeAccent> newAccents = new ArrayList<>();
                     if (!TextUtils.isEmpty(accents)) {
                         try {
@@ -4406,6 +4411,33 @@ public class Theme {
         }
         applyTheme(applyingTheme, false, false, switchToTheme == 2);
         AndroidUtilities.runOnUIThread(Theme::checkAutoNightThemeConditions);
+    }
+
+    // TGeshka: the default accent of a built-in theme, lavender for "Blue" and "Dark Blue".
+    private static int tgeshkaDefaultAccentId(ThemeInfo info) {
+        if ("bluebubbles.attheme".equals(info.assetName)) {
+            return TGESHKA_ACCENT_ID;
+        } else if ("darkblue.attheme".equals(info.assetName)) {
+            return TGESHKA_NIGHT_ACCENT_ID;
+        }
+        return info.firstAccentIsDefault ? DEFALT_THEME_ACCENT_ID : 0;
+    }
+
+    // TGeshka: once after the update, the stock blue accents saved by earlier versions become
+    // lavender. An accent the user picked (any other id, or a custom one) stays as it is.
+    private static void tgeshkaMigrateLavender(SharedPreferences themeConfig) {
+        if (themeConfig.getBoolean("tgeshka_lavender_v1", false)) {
+            return;
+        }
+        SharedPreferences.Editor editor = themeConfig.edit();
+        if (themeConfig.getInt("accent_current_bluebubbles.attheme", TGESHKA_ACCENT_ID) == DEFALT_THEME_ACCENT_ID) {
+            editor.putInt("accent_current_bluebubbles.attheme", TGESHKA_ACCENT_ID);
+        }
+        if (themeConfig.getInt("accent_current_darkblue.attheme", TGESHKA_NIGHT_ACCENT_ID) == 0) {
+            editor.putInt("accent_current_darkblue.attheme", TGESHKA_NIGHT_ACCENT_ID);
+        }
+        editor.putBoolean("tgeshka_lavender_v1", true);
+        editor.commit();
     }
 
     private static void sortAccents(ThemeInfo info) {

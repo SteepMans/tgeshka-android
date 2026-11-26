@@ -42,6 +42,12 @@ adb shell input tap $((W / 2)) $((H * 88 / 100))
 sleep 25
 shot 3-login
 
+# The night theme follows the system dark mode (auto-night "system" by default).
+adb shell cmd uimode night yes > /dev/null 2>&1 || true
+sleep 15
+shot 4-login-dark
+adb shell cmd uimode night no > /dev/null 2>&1 || true
+
 LOGDIRS="/sdcard/Android/data/$PKG/files/logs /data/data/$PKG/cache/logs /data/data/$PKG/files/logs"
 adb shell "ls -la $LOGDIRS" > "$OUT/log-files.txt" 2>&1 || true
 adb shell "for d in $LOGDIRS; do cat \$d/*_net.txt; done" > "$OUT/net.txt" 2>/dev/null || true
