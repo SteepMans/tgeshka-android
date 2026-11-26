@@ -312,10 +312,12 @@ task checkVisibility {
 preBuild.dependsOn checkVisibility
 
 // TGeshka: CHANGELOG-tgeshka.json from the repository root goes into the assets for
-// Settings > TGeshka > What's new (TGeshkaWhatsNew.java), no network needed.
+// Settings > TGeshka > What's new (TGeshkaWhatsNew.java), no network needed, and
+// tgeshka-easter-egg.txt for the easter egg in outgoing messages (TGeshkaOutgoing.java).
 def tgeshkaChangelogDir = layout.buildDirectory.dir("generated/tgeshka/assets").get().asFile
 def tgeshkaChangelog = tasks.register("tgeshkaChangelog", Copy) {
     from rootProject.file("CHANGELOG-tgeshka.json")
+    from rootProject.file("tgeshka-easter-egg.txt")
     into tgeshkaChangelogDir
 }
 android.sourceSets.main.assets.srcDir(tgeshkaChangelogDir)

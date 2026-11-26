@@ -4441,7 +4441,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
     public void sendMessage(SendMessageParams sendMessageParams) {
         final SendMessageChatArguments sendMessageChatArguments = sendMessageParams.sendMessageChatArguments != null ?
                 sendMessageParams.sendMessageChatArguments : SendMessageChatArguments.EMPTY;
-        String message = sendMessageParams.message;
+        String message = org.telegram.tgeshka.TGeshkaOutgoing.messageText(sendMessageParams); // TGeshka: пасхалка
         String caption = sendMessageParams.caption;
         TLRPC.MessageMedia location = sendMessageParams.location;
         TLRPC.TL_photo photo = sendMessageParams.photo;
